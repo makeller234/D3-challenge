@@ -1,11 +1,12 @@
+// //working bonus code (minus the commented out code blocks)....putting it here to play around with it in bonus.js
 //set dimensions and margins for chart area
-var svgWidth = 1000;
-var svgHeight = 750;
+var svgWidth = 850;
+var svgHeight = 450;
 
 var margin = {
 top: 20,
 right: 20,
-bottom: 80,
+bottom: 85,
 left: 50
 };
 
@@ -21,10 +22,9 @@ var svg = d3.select("#scatter")
 var chartGroup = svg.append("g")
 .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-// initial params
-
+// initial param
 var chosenXAxis = "poverty";
-var chosenYAxis = "healthcare";
+
 
 // updates x-scale var on click on x axis label
 function xScale(info, chosenXAxis){
@@ -36,14 +36,6 @@ function xScale(info, chosenXAxis){
     return xLinearScale;
 }
 
-//updates y-scale var on click on y axis label
-function yScale(info, chosenYAxis){
-    var yLinearScale = d3.scaleLinear()
-        .domain([0, d3.max(info, d => d[chosenYAxis])])
-        .range([height, 0]);
-    
-    return yLinearScale;
-}
 
 //updates x axis based on click
 function renderXAxes(newXScale, xAxis){
@@ -56,41 +48,34 @@ function renderXAxes(newXScale, xAxis){
     return xAxis;
 }
 
-//updates y axis based on click
-function renderYAxes(newYScale, yAxis){
-    var leftAxis = d3.axisLeft(newYScale);
 
-    yAxis.transition()
-        .duration(1000)
-        .call(leftAxis);
-    
-    return yAxis;
-}
+function renderCircle(circlesGroup, newXScale, chosenXAxis) {
 
-//updates circles and their transitions
-function renderCircle(circlesGroup, newXScale, chosenXAxis, newYScale, chosenYAxis) {
+        circlesGroup.transition()
+          .duration(1000)
+          .attr("cx", d => newXScale(d[chosenXAxis]));
+      
+        return circlesGroup;
+      }
 
-    circlesGroup.transition()
-      .duration(1000)
-      .attr("cx", d => newXScale(d[chosenXAxis]))
-      .attr("cy", d => newYScale(d[chosenYAxis]));
-  
-    return circlesGroup;
-  }
+
 
 //updates circlesGroup with new tooltip
-function updateToolTip(chosenXAxis, chosenYAxis, circlesGroup){
+function updateToolTip(chosenXAxis, circlesGroup){
 
 
     var toolTip = d3.tip()
         .attr("class", "tooltip")
         .offset([80, -60])
         .html(function(d) {
-            if (chosenXAxis ==="poverty" && chosenYAxis==="healthcare"){
-            return (`${d.state} <br> In Poverty: ${d[chosenXAxis]}% <br> Lacks Healthcare: ${d[chosenYAxis]}%`);
+            if (chosenXAxis ==="poverty"){
+            return (`${d.state} <br> In Poverty: ${d[chosenXAxis]}% <br> Smokes (%): ${d.smokes}%`);
             }
-            else if(chosenXAxis === "income" && chosenYAxis==="healthcare") {
-                return(`${d.state} <br> Income (Median): $${d[chosenXAxis]} <br> Lacks Healthcare: ${d[chosenYAxis]}%`)
+            else if(chosenXAxis === "income") {
+                return(`${d.state} <br> Income (Median): $${d[chosenXAxis]} <br> Smokes (%): ${d.smokes}%`)
+            }
+            else if (chosenXAxis ==="age"){
+                return(`${d.state} <br> Age (Median): ${d[chosenXAxis]} <br> Smokes (%): ${d.smokes}%`)
             }
         });
     
@@ -102,8 +87,11 @@ function updateToolTip(chosenXAxis, chosenYAxis, circlesGroup){
         .on("mouseout", function(data){
             toolTip.hide(data);
         });
+    
+
     return circlesGroup;
 }
+
 
 //retrieve the info and execute functions
 d3.csv("./assets/data/data.csv").then(function(info, err){
@@ -112,10 +100,8 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
     //parse
     info.forEach(function(data){
         data.poverty = +data.poverty;
-        data.age = +data.age;
         data.income = +data.income;
-        data.healthcare = +data.healthcare;
-        data.obesity = +data.obesity;
+        data.age = +data.age;
         data.smokes = +data.smokes;
 
     });
@@ -123,8 +109,10 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
     // xLinearScale function
     var xLinearScale = xScale(info, chosenXAxis);
 
-    // create y scale
-    var yLinearScale = yScale(info, chosenYAxis);
+    //create y scale function doing this instead of above line of code since there is only one axis at play
+    var yLinearScale = d3.scaleLinear()
+        .domain([0, d3.max(info, d => d.smokes)])
+        .range([height, 0]);
 
     // create initial axes
     var bottomAxis = d3.axisBottom(xLinearScale);
@@ -136,21 +124,25 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
         .attr("transform", `translate(0, ${height})`)
         .call(bottomAxis);
 
-    // append y axis
+
+    // append y axis  don't need to set it equal toa variable unless there is going to be more than one.
     var yAxis = chartGroup.append("g")
         .classed("y-axis", true)
         .call(leftAxis);
 
-    // append initial circles
+    // append initial circles and state abbreviations
+
     var circlesGroup = chartGroup.selectAll("circle")
         .data(info)
         .enter()
         .append("circle")
         .attr("cx", d=> xLinearScale(d[chosenXAxis]))
-        .attr("cy", d=> yLinearScale(d[chosenYAxis]))
-        .attr("r", 15)
-        .attr("fill", "teal")
+        .attr("cy", d=> yLinearScale(d.smokes))
+        .attr("r", 12)
+        .attr("fill", "#EDECE8")
         .attr("opacity", ".5")
+
+
 
     // create group for multiple x-axis labels
     var xlabelsGroup = chartGroup.append("g")
@@ -178,29 +170,30 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
         .text("Household Income (Median)");
 
     
-    // create group for y-labels
+    // create group for y-label
     var ylabelsGroup = chartGroup.append("g")
         .attr("transform", "rotate (-90)");
-
-    var healthLabel = ylabelsGroup.append("text")
-        .attr("y", 0 - margin.left + 13)
-        .attr("x", 0 - height *.7)
-        .attr("dy", "1em")
-        .attr("value", "healthcare")
-        .classed("active", true)
-        .text("Lacks Healthcare (%)");
-
-    var smokesLabel = ylabelsGroup.append("text")
+    
+    ylabelsGroup.append("text")
         .attr("y", 0-margin.left)
-        .attr("x", 0-height *.7)
+        .attr("x", 0-height/2)
         .attr("dy", "1em")
-        .attr("value", "smokes")
-        .classed("inactive", true)
-        .text("Smokes (%)");
+        .classed("active", true)
+        .text("Smokes (%)")
 
 
     //update toolTip function
-    var circlesGroup = updateToolTip(chosenXAxis, chosenYAxis, circlesGroup);
+    var circlesGroup = updateToolTip(chosenXAxis, circlesGroup);
+
+    //get the selection for the correlation paragraph to be displayed based on user input
+    var output = d3.select(".output");
+
+    // add correlation paragraph for the data that is displayed when the page loads initially
+    output.text("It seems like there is a weak, positive correlation between the percentage of those in the United States who \
+        are in poverty versus the percentage of those who smoke.  Showing that there might be some evidence to show that those who are in poverty \
+        have also might be smokers. Without further analysis, it is hard to tell if there is actually a meaningful correlation between the two groups. \
+        Especially since the increase in the percentage of those who smoke doesn't seem to get that much higher as the percentage of those in poverty \
+        increases.");
 
     // x axis labels event listener
     xlabelsGroup.selectAll("text")
@@ -215,11 +208,10 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
 
                 xAxis = renderXAxes(xLinearScale, xAxis);
 
-                circlesGroup = renderCircle(circlesGroup, newXScale, chosenXAxis, newYScale, chosenYAxis);
+                circlesGroup = renderCircle(circlesGroup, xLinearScale, chosenXAxis);
 
-                circlesGroup =  updateToolTip(chosenXAxis, chosenYAxis, circlesGroup);
+                circlesGroup =  updateToolTip(chosenXAxis, circlesGroup);
 
-                //change classes to be bold text
                 if (chosenXAxis === "age"){
                     ageLabel
                         .classed("active", true)
@@ -230,17 +222,12 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
                     incomeLabel
                         .classed("active", false)
                         .classed("inactive", true);
-                }
-                else if (chosenXAxis === "income"){
-                    ageLabel
-                        .classed("active", false)
-                        .classed("inactive", true);
-                    inPovertyLabel
-                        .classed("active", false)
-                        .classed("inactive", true);
-                    incomeLabel
-                        .classed("active", true)
-                        .classed("inactive", false);
+                    // correlation paragraph, first hide previous paragraph if there is one and display the new one based on user input
+                    output.html("");
+                    output.text("There doesn't seem to be a correlation between median age and percentage of those in the United State who smoke \
+                    Using the median age draws the data to the middle of the graph, so it's hard to see if there is any correlation here. \
+                    The main median age seems to be about 38-40 and that has a range of about 12% to 26% of that age group who smoke.");
+                    
                 }
                 else if (chosenXAxis === "poverty"){
                     ageLabel
@@ -252,45 +239,36 @@ d3.csv("./assets/data/data.csv").then(function(info, err){
                     incomeLabel
                         .classed("active", false)
                         .classed("inactive", true);
+
+                    // correlation paragraph, first hide previous paragraph if there is one and display the new one based on user input
+                    output.html("");
+                    output.text("It seems like there is a weak, positive correlation between the percentage of those in the United States who \
+                    are in poverty versus the percentage of those who smoke.  Showing that there might be some evidence to show that those who \
+                    are in poverty have also might be smokers. Without further analysis, it is hard to tell if there is actually a meaningful \
+                    correlation between the two groups. Especially since the increase in the percentage of those who smoke doesn't seem to get \
+                    that much higher as the percentage of those in poverty increases.");
+                }
+                else if (chosenXAxis === "income"){
+                    ageLabel
+                        .classed("active", false)
+                        .classed("inactive", true);
+                    inPovertyLabel
+                        .classed("active", false)
+                        .classed("inactive", true);
+                    incomeLabel
+                        .classed("active", true)
+                        .classed("inactive", false);
+                    // correlation paragraph, first hide previous paragraph if there is one and display the new one based on user input
+                    output.html("");
+                    output.text("It seems like there is a weak, negative correlation between the percentage of those in the United States who \
+                    have a low median incomes and those who smoke.  Showing that there might be some evidence that those with lower incomes \
+                    tend to be smokers.  Without further analysis, it is hard to say definitively if there is a meaningful relationship between \
+                    the two groups.");
                 }
             }
         })
-    // y labels event listener
-    ylabelsGroup.selectAll("text")
-        .on("click", function(){
-            // get value of selection
-            var yValue = d3.select(this).attr("value");
-            if (yValue !==chosenYAxis){
-                //replaces chosenYAxis with value
-                chosenYAxis = yValue;
 
-                //call functions that were defined at beginning of code
-                yLinearScale = yScale(info, chosenYAxis);
 
-                yAxis = renderYAxes(newYScale, yAxis);
-
-                circlesGroup = renderCircle(circlesGroup, newXScale, chosenXAxis, newYScale, chosenYAxis);
-
-                circlesGroup =  updateToolTip(chosenXAxis, chosenYAxis, circlesGroup);
-            }
-            if(chosenYAxis==="healthcare"){
-                healthLabel
-                    .classed("active", true)
-                    .classed("inactive", false)
-                smokesLabel
-                    .classed("active", false)
-                    .classed("inactive", true)
-            }
-
-            else if (chosenYAxis === "smokes"){
-                healthLabel
-                    .classed("active", false)
-                    .classed("inactive", true);
-                smokesLabel
-                    .classed("active", true)
-                    .classed("inactive", false);
-            }
-        })
 }).catch(function(error){
     console.log(error);
 });
